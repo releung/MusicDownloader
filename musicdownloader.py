@@ -51,6 +51,8 @@ set_download_cover_image_height = True
 set_api_server = "https://api.injahow.cn/meting/"
 
 g_music_dir_name = "MusicB"
+#g_music_dir_name = g_music_dir_name  + "/" + str(
+#    time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time())))
 g_log_dir = "MusicLogB"
 g_log_path = g_log_dir + "/" + str(
     time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))) + ".log"
@@ -97,6 +99,7 @@ def name_check_and_replace(name):
 
 def json_get_music_name(data):
     """ 从 api json 中返回可用名称 """
+    #print(data)
     name = data['name']
     name = name_check_and_replace(name)
     if set_name_add_artist:
@@ -111,7 +114,7 @@ def json_get_music_name(data):
 
 def apiurl_get_id(music_url):
     """ 识别 api json 里的 url 并获取里面的歌曲ID """
-    sid = re.findall(r'id=(.*?)$', music_url) 
+    sid = re.findall(r'id=(.*?)$', music_url)
     return str(sid[0])
 
 def url_get_id(music_url):
@@ -226,6 +229,7 @@ def json_download_music(data, headers, proxies):
 
     music_url = data['url']
     sid = apiurl_get_id(music_url)
+    print("sid:"+sid)
 
     redirected_url = get_redirected_url(music_url, headers, proxies)
     music_type = url_get_type(redirected_url)
@@ -655,12 +659,31 @@ def mode_music(api_path, headers, proxies, header163, show_github = True):
     except: 
         print(colored("连接错误:请关闭加速器或检查API服务是否设置正确后重试...", "yellow"))
         return
+        
+    #print(response.text)
     data = json.loads(response.text)
     if 'error' in data: 
         split_line()
         print("\033[33m请输入合法ID!\033[0m")
         return 
     counter = 0 + 1
+    
+    #print(data)
+    print("data total:", len(data), type(data))
+    # 这里可以选择要下载前几首
+    while True:
+        user_input = input("请输入一个数字（不大于 {}，不小于 1）: ".format(len(data)))
+        
+        try:
+            number = int(user_input)
+            if number >= 1 and number <= len(data):
+                break
+            else:
+                print("输入的数字超出范围，请重新输入。")
+        except ValueError:
+            print("输入的不是有效的数字，请重新输入。")
+
+    print("download count:", user_input)
     for data in data:
         plog(str(counter) + " ")
         music_path = json_download_music(data, headers, proxies)
@@ -679,6 +702,9 @@ def mode_music(api_path, headers, proxies, header163, show_github = True):
         if set_download_lyric:
             json_download_lyric(data, music_path, headers, proxies)
         counter += 1
+        if counter > int(user_input):
+            break
+
     if show_github:
         split_line()
         print(colored("Github: https://github.com/Beadd/MusicDownloader", "green"))
@@ -787,7 +813,10 @@ def mode_setting():
 
 
 
-
+def extract_numbers(string):
+    pattern = r'\b\d+\b'
+    numbers = re.findall(pattern, string)
+    return numbers
 
 
 
@@ -807,6 +836,17 @@ def start_function(music_url = None):
     if mode == 's' or mode == 'set' or mode == 'setting': 
         mode_setting()
         return
+        
+    url_mode = url_get_platform(mode)
+    ids = extract_numbers(url_get_id(mode))
+    id0 = ids[0] if len(ids) > 0 else "none id"
+    print(mode, "\n\t url_mode: " + url_mode + "\n\turl id0: "+ id0)
+    
+    global g_music_dir_name
+    g_music_dir_name = g_music_dir_name + "/" + url_mode + "_" + id0
+    if not os.path.exists(g_music_dir_name): os.mkdir(g_music_dir_name)
+    print("g_music_dir_name:" + g_music_dir_name)
+    
     if url_get_platform(mode) == 'netease_music':
         # 网易云单曲
         api_path = api_netease_music + url_get_id(mode)
@@ -881,10 +921,14 @@ def main():
     if args.args_server is not None: set_api_server = args.args_server 
     if args.args_url is None: pure_main()
     else: command_start(args)
+    
+    print(args)
 
 if __name__ == "__main__":
-    if not os.path.exists(g_music_dir_name): os.mkdir(g_music_dir_name)
+    #if not os.path.exists(g_music_dir_name): os.mkdir(g_music_dir_name)
     if not os.path.exists(g_log_dir): os.mkdir(g_log_dir)
+    
+    print("g_log_path: " + g_log_path)
     logging.basicConfig(filename=g_log_path, level=logging.DEBUG)
     built_in_print = print
     print = print_log # pylint: disable=redefined-builtin
