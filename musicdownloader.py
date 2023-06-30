@@ -50,6 +50,7 @@ set_download_lyric = True
 set_download_cover_image_height = True
 set_api_server = "https://api.injahow.cn/meting/"
 
+_g_music_dir_name = "MusicB"
 g_music_dir_name = "MusicB"
 #g_music_dir_name = g_music_dir_name  + "/" + str(
 #    time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time())))
@@ -246,8 +247,15 @@ def json_download_music(data, headers, proxies):
     if music_req.content == None or music_req.content == b'': # pylint: disable=singleton-comparison
         print(colored("下载失败,自动跳过,可能是vip歌曲", "yellow"))
         return "exit"
-    with open(music_path, "wb") as code:
-        code.write(music_req.content)
+
+    try:
+        with open(music_path, "wb") as code:
+            code.write(music_req.content)
+    except FileNotFoundError:
+        # 处理文件不存在的情况
+        print("文件不存在或路径错误。")
+        # 继续执行其他操作或进行其他处理
+
     if not os.path.getsize(music_path):
         print(colored("getsize失败,自动跳过,可能是vip歌曲", "yellow"))
         return "getsize"
@@ -670,6 +678,11 @@ def mode_music(api_path, headers, proxies, header163, show_github = True):
     
     #print(data)
     print("data total:", len(data), type(data))
+    _index = 0
+    for d in data:
+        _index += 1
+        print(_index, d)
+
     # 这里可以选择要下载前几首
     while True:
         user_input = input("请输入一个数字（不大于 {}，不小于 1）: ".format(len(data)))
@@ -710,6 +723,7 @@ def mode_music(api_path, headers, proxies, header163, show_github = True):
         print(colored("Github: https://github.com/Beadd/MusicDownloader", "green"))
         print(colored("下载完成!已下载" + str(counter - 1) + "首歌曲。感谢使用!", "green"))
         print("\033[35m继续或输入 q 以退出\033[0m")
+
 
 def mode_album(album_id, headers, proxies, header163):
     """ 此函数接受专辑id,调用网易云接口和mode_music """
@@ -828,6 +842,10 @@ def start_function(music_url = None):
     api_qq_music = set_api_server + "?server=tencent&type=song&id="
     api_qq_playlist = set_api_server + "?server=tencent&type=playlist&id="
     split_line()
+    
+    global g_music_dir_name
+    g_music_dir_name = _g_music_dir_name
+    
     if music_url is None:
         print(colored("输入q退出,输入s进入设置", "cyan"))
         mode = input("请输入歌曲或歌单或歌手或专辑链接：")
@@ -842,7 +860,6 @@ def start_function(music_url = None):
     id0 = ids[0] if len(ids) > 0 else "none id"
     print(mode, "\n\t url_mode: " + url_mode + "\n\turl id0: "+ id0)
     
-    global g_music_dir_name
     g_music_dir_name = g_music_dir_name + "/" + url_mode + "_" + id0
     if not os.path.exists(g_music_dir_name): os.mkdir(g_music_dir_name)
     print("g_music_dir_name:" + g_music_dir_name)
